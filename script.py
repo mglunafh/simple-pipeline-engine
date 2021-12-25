@@ -1,41 +1,68 @@
+#!/usr/bin/env python
+
 import os
 from task import Task
+from utils import create_statistics
+
+DATA_FOLDER = "data"
 
 
-stocks = os.path.join("data", "stonks.tsv")
+def data_file(filename):
+    return os.path.join(DATA_FOLDER, filename)
 
-t1 = Task("first task")\
-    .with_command_list("cat", "{input}")\
-    .with_input("{input}", stocks)
 
-t2 = Task("Line count")\
-    .with_command_list("wc", "{mode}", "{file}")\
-    .with_input("{file}", stocks)\
-    .with_parameter("{mode}", "-l")
-
-t3 = Task("Char count")\
-    .with_command_list("wc", "{mode}", "{file}")\
-    .with_input("{file}", stocks)\
+stocks = data_file("stonks.tsv")
+chars_file = data_file("_chars.tsv")
+task_chars = Task("CharCount")\
+    .with_command_list("wc", "{mode}")\
+    .with_stdin(stocks)\
+    .with_stdout(chars_file)\
     .with_parameter("{mode}", "-c")
 
-lines_file = os.path.join("data", "_lines.tsv")
-t4 = Task("Line count") \
+lines_file = data_file("_lines.tsv")
+task_lines = Task("LineCount") \
     .with_command_list("wc", "{mode}")\
     .with_stdin(stocks)\
     .with_stdout(lines_file)\
     .with_parameter("{mode}", "-l")
 
-stocks_after_crash = os.path.join("data", "_stonks.crash.tsv")
-t5 = Task("Gazprom crash")\
+quotes_file = data_file("quotes-day0.tsv")
+value_file = data_file("_value.txt")
+task_value = Task("PortfolioValue")\
+    .with_command_list("python", "eval_portfolio.py", "-s", "{stocks}", "-q", "{quotes}")\
+    .with_input("{stocks}", stocks)\
+    .with_input("{quotes}", quotes_file)\
+    .with_stdout(value_file)
+
+stocks_after_loss = data_file("_stonks.loss.tsv")
+task_stocks_after_loss = Task("GazpromLoss")\
     .with_command_list("sed", "'/GZPR/d'", "{input}")\
     .with_input("{input}", stocks)\
-    .with_stdout(stocks_after_crash)
+    .with_stdout(stocks_after_loss)
 
-current_task = t4
-print(current_task)
-current_task.execute()
+value_loss_file = data_file("_value.loss.txt")
+task_value_after_loss = Task("PortfolioValueAfterLoss") \
+    .with_command_list("python", "eval_portfolio.py", "-s", "{stocks}", "-q", "{quotes}") \
+    .with_input("{stocks}", stocks_after_loss) \
+    .with_input("{quotes}", quotes_file) \
+    .with_stdout(value_loss_file)
 
-# for t in [t1, t2, t3, t4]:
-#     print(t)
-#     t.execute()
-#     print("\n+++++++++++++++++++++\n")
+quotes_bigtech_file = data_file("quotes-bigtech.tsv")
+value_bigtech_file = data_file("_value.bigtech.txt")
+task_value_after_rally = Task("PortfolioValueAfterAfterBigTechRally") \
+    .with_command_list("python", "eval_portfolio.py", "-s", "{stocks}", "-q", "{quotes}") \
+    .with_input("{stocks}", stocks_after_loss) \
+    .with_input("{quotes}", quotes_bigtech_file) \
+    .with_stdout(value_bigtech_file)
+
+
+task_chars.execute()
+task_lines.execute()
+task_value.execute()
+task_stocks_after_loss.execute()
+task_value_after_loss.execute()
+task_value_after_rally.execute()
+
+stat_summary = data_file("_stat.summary.tsv")
+create_statistics(chars_file, lines_file, value_file, value_loss_file, value_bigtech_file,
+                  stat_summary)
