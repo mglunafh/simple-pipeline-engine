@@ -12,7 +12,7 @@ class SimplePipeline:
     def data_file(self, filename):
         return os.path.join(self.data_folder, filename)
 
-    def run_simple_pipeline(self):
+    def run_simple_pipeline(self, verbose=False):
 
         stocks = self.data_file("stonks.tsv")
         chars_file = self.data_file("_chars.tsv")
@@ -61,7 +61,7 @@ class SimplePipeline:
         task_holder = TaskHolder(self.data_folder)
         task_holder.add_tasks(task_chars, task_lines, task_value, task_stocks_after_loss,
                               task_value_after_loss, task_value_after_rally)
-        task_holder.execute()
+        task_holder.execute(verbose=verbose)
 
         stat_summary = self.data_file("_stat.summary.tsv")
         create_statistics(chars_file, lines_file, value_file, value_loss_file, value_bigtech_file,

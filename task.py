@@ -86,7 +86,7 @@ class Task:
 
     def execute(self):
         command = self.get_command()
-        print(f"Executing '{self.name}' command: [> {' '.join(command)} <]\n")
+        print(f"Executing '{self.name}' command: [}} {' '.join(command)} {{]\n")
 
         process = subprocess.Popen(command,
                                    stdin=subprocess.PIPE,

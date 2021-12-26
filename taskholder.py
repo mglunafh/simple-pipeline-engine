@@ -17,10 +17,12 @@ class TaskHolder:
     def add_tasks(self, *tasks):
         self.task_list.extend(tasks)
 
-    def execute(self):
+    def execute(self, verbose=False):
         self._load_checksums()
         try:
             for task in self.task_list:
+                if verbose:
+                    print(task)
                 if self.should_be_rerun(task):
                     task.execute()
                     self._calculate_checksums(task)
