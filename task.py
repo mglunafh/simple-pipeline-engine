@@ -1,6 +1,14 @@
 import subprocess
 
 
+class ExecutionException(Exception):
+
+    def __init__(self, task_name, exit_status):
+        self.name = task_name
+        self.exit_code = exit_status
+        super().__init__(f"Task '{task_name}' failed with exit status: {exit_status}")
+
+
 class Task:
 
     def __init__(self, name):
@@ -78,37 +86,38 @@ class Task:
 
     def execute(self):
         command = self.get_command()
-        print(f"Executing command: '{' '.join(command)}'")
+        print(f"Executing '{self.name}' command: [> {' '.join(command)} <]\n")
+
+        process = subprocess.Popen(command,
+                                   stdin=subprocess.PIPE,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE,
+                                   universal_newlines=True,
+                                   bufsize=0)
         if self.stdin:
-            process = subprocess.Popen(command,
-                                       stdin=subprocess.PIPE,
-                                       stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE,
-                                       universal_newlines=True,
-                                       bufsize=0)
             with open(self.stdin) as f:
                 process.stdin.writelines(f.readlines())
-                process.stdin.close()
+        process.stdin.close()
+        self.__process_output(process)
 
-            stdout, stderr = process.communicate()
-            if self.stdout:
-                with open(self.stdout, "w") as result:
-                    result.write(stdout)
-            else:
-                print(stdout)
-            print(stderr)
-
-        else:
-            process = subprocess.Popen(command,
-                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                       universal_newlines=True)
-            stdout, stderr = process.communicate()
-            if self.stdout:
-                with open(self.stdout, "w") as result:
-                    result.write(stdout)
-            else:
-                print(stdout)
-            print(stderr)
+    def __process_output(self, process):
+        result_file = None if not self.stdout else open(self.stdout, "w")
+        try:
+            while True:
+                output = process.stdout.readline()
+                print(output, file=result_file, end="")
+                exit_code = process.poll()
+                if exit_code is not None:
+                    for stdout_line in process.stdout.readlines():
+                        print(stdout_line, file=result_file, end="")
+                    for err_line in process.stderr.readlines():
+                        print(f"{self.name}: {err_line}", end="")
+                    if exit_code != 0:
+                        raise ExecutionException(self.name, exit_code)
+                    break
+        finally:
+            if result_file:
+                result_file.close()
 
     @staticmethod
     def __replace(lst, label, value):
