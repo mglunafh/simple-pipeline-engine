@@ -18,7 +18,7 @@ class Task:
         self.parameters = {}
         self.stdin = None
         self.stdout = None
-        self.command = ""
+        self.command = []
 
     def with_input(self, label, filename):
         if label not in self.inputs:

@@ -1,5 +1,6 @@
 import os
 from task import Task
+from taskholder import TaskHolder
 from utils import create_statistics
 
 
@@ -43,7 +44,7 @@ class SimplePipeline:
             .with_stdout(stocks_after_loss)
 
         value_loss_file = self.data_file("_value.loss.txt")
-        task_value_after_loss = Task("PortfolioValueAfterLoss") \
+        task_value_after_loss = Task("ValueAfterLoss") \
             .with_command_list("python", "eval_portfolio.py", "-s", "{stocks}", "-q", "{quotes}") \
             .with_input("{stocks}", stocks_after_loss) \
             .with_input("{quotes}", quotes_file) \
@@ -51,19 +52,22 @@ class SimplePipeline:
 
         quotes_bigtech_file = self.data_file("quotes-bigtech.tsv")
         value_bigtech_file = self.data_file("_value.bigtech.txt")
-        task_value_after_rally = Task("PortfolioValueAfterAfterBigTechRally") \
+        task_value_after_rally = Task("ValueAfterBigTechRally") \
             .with_command_list("python", "eval_portfolio.py", "-s", "{stocks}", "-q", "{quotes}") \
             .with_input("{stocks}", stocks_after_loss) \
             .with_input("{quotes}", quotes_bigtech_file) \
             .with_stdout(value_bigtech_file)
 
-        task_chars.execute()
-        task_lines.execute()
-        task_value.execute()
-        task_stocks_after_loss.execute()
-        task_value_after_loss.execute()
-        task_value_after_rally.execute()
+        task_holder = TaskHolder(self.data_folder)
+        task_holder.add_tasks(task_chars, task_lines, task_value, task_stocks_after_loss,
+                              task_value_after_loss, task_value_after_rally)
+        task_holder.execute()
 
         stat_summary = self.data_file("_stat.summary.tsv")
         create_statistics(chars_file, lines_file, value_file, value_loss_file, value_bigtech_file,
                           stat_summary)
+
+        last_task = Task("ListChecksums").with_command_list("cat", "{input}", "{chk}")\
+            .with_input("{chk}", task_holder.checksums_file)\
+            .with_input("{input}", stat_summary)
+        last_task.execute()

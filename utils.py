@@ -1,4 +1,7 @@
 import csv
+import hashlib
+
+CHUNK_SIZE = 8192
 
 
 def create_statistics(chars, lines, value, value_after_loss, value_after_rally, stats_file):
@@ -28,3 +31,11 @@ def create_statistics(chars, lines, value, value_after_loss, value_after_rally, 
         writer.writerow(["Total characters", "Total rows", "Portfolio Value",
                          "Portfolio Value After Loss", "Portfolio Value After Rally in Big Tech"])
         writer.writerow([char_amount, line_amount, val, val_loss, val_rally])
+
+
+def file_checksum(filename):
+    with open(filename, "rb") as f:
+        file_hash = hashlib.md5()
+        while chunk := f.read(CHUNK_SIZE):
+            file_hash.update(chunk)
+    return file_hash
