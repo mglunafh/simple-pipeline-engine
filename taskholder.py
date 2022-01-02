@@ -39,7 +39,7 @@ class TaskHolder:
 
         for filename in inputs:
             found_hash = self.checksums.get((task.name, filename), None)
-            if found_hash is None:
+            if found_hash is None or not os.path.isfile(filename):
                 return True
             actual = file_checksum(filename)
             if found_hash != actual.hexdigest():

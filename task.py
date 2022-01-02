@@ -1,4 +1,5 @@
 import subprocess
+import sys
 
 
 class ExecutionException(Exception):
@@ -84,40 +85,43 @@ class Task:
             command = Task.__replace(command, label, param)
         return command
 
-    def execute(self):
+    def execute(self, use_shell=False, custom_output=None):
         command = self.get_command()
         print(f"Executing '{self.name}' command: [}} {' '.join(command)} {{]\n")
 
-        process = subprocess.Popen(command,
-                                   stdin=subprocess.PIPE,
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE,
-                                   universal_newlines=True,
-                                   bufsize=0)
-        if self.stdin:
-            with open(self.stdin) as f:
-                process.stdin.writelines(f.readlines())
-        process.stdin.close()
-        self.__process_output(process)
+        result_stdout = custom_output if custom_output else \
+            open(self.stdout, "w") if self.stdout else subprocess.PIPE
+        default_stdout = result_stdout == subprocess.PIPE
 
-    def __process_output(self, process):
-        result_file = None if not self.stdout else open(self.stdout, "w")
         try:
-            while True:
-                output = process.stdout.readline()
-                print(output, file=result_file, end="")
-                exit_code = process.poll()
-                if exit_code is not None:
-                    for stdout_line in process.stdout.readlines():
-                        print(stdout_line, file=result_file, end="")
-                    for err_line in process.stderr.readlines():
-                        print(f"{self.name}: {err_line}", end="")
-                    if exit_code != 0:
-                        raise ExecutionException(self.name, exit_code)
-                    break
+            process = subprocess.Popen(command, universal_newlines=True, bufsize=0,
+                                       stdin=subprocess.PIPE,
+                                       stdout=result_stdout,
+                                       stderr=subprocess.PIPE,
+                                       shell=use_shell)
+            if self.stdin:
+                with open(self.stdin) as f:
+                    process.stdin.writelines(f.readlines())
+            process.stdin.close()
+            self.__process_output(process, is_default_stdout=default_stdout)
         finally:
-            if result_file:
-                result_file.close()
+            if self.stdout:
+                result_stdout.close()
+
+    def __process_output(self, process, is_default_stdout=True):
+        while True:
+            if is_default_stdout:
+                output = process.stdout.readline()
+                print(output, end="")
+
+            exit_code = process.poll()
+            if exit_code is not None:
+                for err_line in process.stderr.readlines():
+                    print(f"{self.name}: {err_line}", file=sys.stderr, end="")
+                if exit_code != 0:
+                    raise ExecutionException(self.name, exit_code)
+                else:
+                    break
 
     @staticmethod
     def __replace(lst, label, value):

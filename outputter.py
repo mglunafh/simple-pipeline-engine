@@ -7,7 +7,7 @@ import sys
 PATTERN = re.compile("[0-9]+[e|o]")
 OUT = "OUT"
 ERR = "ERR"
-TEMPLATE = "{channel}: Line number #{i}"
+TEMPLATE = "{channel}: Line number #{n}"
 
 
 def validate(value):
@@ -44,7 +44,7 @@ if __name__ == '__main__':
             n, direction = get_number_and_output(option)
             channel = out_channel if direction == OUT else err_channel
             for i in range(n):
-                message = TEMPLATE.format(channel=direction, i=counter + i)
+                message = TEMPLATE.format(channel=direction, n=counter + i)
                 print(message, file=channel)
             counter += n
     finally:
